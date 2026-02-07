@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Co-Scientist</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Agentic AI Co-Scientist</p>
+          <h1>UniProt-powered scientific copilot</h1>
+          <p class="subtitle">
+            Explore protein knowledge, generate hypotheses, and outline follow-up tasks for
+            pre-clinical discovery.
+          </p>
+        </div>
+        <div class="hero-card">
+          <h2>Quick actions</h2>
+          <ul>
+            <li>Connect to UniProt in real time.</li>
+            <li>Summarize functional annotations.</li>
+            <li>Propose focused next steps.</li>
+          </ul>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>Ask a question</h2>
+        <form id="query-form">
+          <label>
+            Query
+            <input
+              id="query"
+              name="query"
+              type="text"
+              placeholder="e.g. EGFR, BRCA1, inflammation"
+              required
+            />
+          </label>
+          <label>
+            Organism (optional)
+            <input id="organism" name="organism" type="text" placeholder="e.g. Homo sapiens" />
+          </label>
+          <label>
+            Focus area
+            <input id="focus" name="focus" type="text" value="mechanism of action" />
+          </label>
+          <button type="submit">Analyze</button>
+        </form>
+        <p id="status" class="status"></p>
+      </section>
+
+      <section class="grid">
+        <article class="card" id="summary-card">
+          <h2>Summary</h2>
+          <p id="summary">Run a query to see a synthesized summary.</p>
+        </article>
+        <article class="card" id="entries-card">
+          <h2>UniProt entries</h2>
+          <div id="entries" class="list"></div>
+        </article>
+      </section>
+
+      <section class="grid">
+        <article class="card" id="hypotheses-card">
+          <h2>Hypotheses</h2>
+          <div id="hypotheses" class="list"></div>
+        </article>
+        <article class="card" id="tasks-card">
+          <h2>Next-step tasks</h2>
+          <div id="tasks" class="list"></div>
+        </article>
+      </section>
+
+      <section class="card" id="interpretation-card">
+        <h2>Interpretation cues</h2>
+        <ul id="interpretation" class="bullets"></ul>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
