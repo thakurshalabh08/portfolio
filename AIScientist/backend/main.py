@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -52,11 +54,11 @@ async def script() -> FileResponse:
 
 
 @app.get("/api/health")
-async def health() -> Dict[str, str]:
+async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _extract_function(entry: Dict[str, Any]) -> Optional[str]:
+def _extract_function(entry: dict[str, Any]) -> str | None:
     comments = entry.get("comments", [])
     for comment in comments:
         if comment.get("commentType") == "FUNCTION":
@@ -66,8 +68,8 @@ def _extract_function(entry: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _summarize_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    summarized: List[Dict[str, Any]] = []
+def _summarize_entries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    summarized = []
     for entry in entries:
         protein_desc = entry.get("proteinDescription", {})
         recommended = protein_desc.get("recommendedName", {})
@@ -97,18 +99,11 @@ def _summarize_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return summarized
 
 
-async def _uniprot_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
+async def _uniprot_get(path: str, params: dict[str, Any]) -> dict[str, Any]:
     url = f"{UNIPROT_BASE_URL}{path}"
     async with httpx.AsyncClient(timeout=UNIPROT_TIMEOUT) as client:
         response = await client.get(url, params=params)
     if response.status_code != 200:
-        if response.status_code == 400:
-            detail = response.text
-            try:
-                detail = response.json().get("messages", response.text)
-            except ValueError:
-                detail = response.text
-            raise HTTPException(status_code=400, detail=f"UniProt query error: {detail}")
         raise HTTPException(
             status_code=502,
             detail=f"UniProt request failed with status {response.status_code}",
@@ -120,12 +115,11 @@ async def _uniprot_get(path: str, params: Dict[str, Any]) -> Dict[str, Any]:
 async def search(
     query: str = Query(..., min_length=2),
     size: int = Query(5, ge=1, le=25),
-) -> Dict[str, Any]:
-    query_terms = _build_query_terms(query, "")
+) -> dict[str, Any]:
     data = await _uniprot_get(
         "/uniprotkb/search",
         {
-            "query": query_terms,
+            "query": query,
             "format": "json",
             "fields": "accession,id,protein_name,gene_primary,organism_name,comment(FUNCTION)",
             "size": size,
@@ -139,7 +133,7 @@ async def search(
 
 
 @app.get("/api/entry/{accession}")
-async def entry(accession: str) -> Dict[str, Any]:
+async def entry(accession: str) -> dict[str, Any]:
     data = await _uniprot_get(f"/uniprotkb/{accession}", {"format": "json"})
     protein_desc = data.get("proteinDescription", {})
     recommended = protein_desc.get("recommendedName", {})
@@ -161,7 +155,7 @@ async def entry(accession: str) -> Dict[str, Any]:
 
 
 @app.post("/api/analyze")
-async def analyze(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
+async def analyze(payload: dict[str, Any], request: Request) -> dict[str, Any]:
     query = str(payload.get("query", "")).strip()
     if len(query) < 2:
         raise HTTPException(status_code=400, detail="Query must be at least 2 characters")
@@ -169,7 +163,9 @@ async def analyze(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
     focus = str(payload.get("focus", "mechanism of action")).strip()
     organism = str(payload.get("organism", "")).strip()
 
-    query_terms = _build_query_terms(query, organism)
+    query_terms = query
+    if organism:
+        query_terms = f"({query}) AND (organism_name:{organism})"
 
     data = await _uniprot_get(
         "/uniprotkb/search",
@@ -190,9 +186,9 @@ async def analyze(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
             "entries": [],
         }
 
-    hypotheses: List[Dict[str, str]] = []
-    interpretation: List[str] = []
-    tasks: List[Dict[str, str]] = []
+    hypotheses = []
+    interpretation = []
+    tasks = []
     for entry_item in entries[:3]:
         protein = entry_item.get("protein_name") or entry_item.get("id")
         gene = entry_item.get("gene") or "this gene"
@@ -234,18 +230,3 @@ async def analyze(payload: Dict[str, Any], request: Request) -> Dict[str, Any]:
             "requestor": request.client.host if request.client else "unknown",
         },
     }
-
-
-def _build_query_terms(query: str, organism: str) -> str:
-    base_query = query
-    if ":" not in query:
-        cleaned_query = query.strip()
-        if " " in cleaned_query:
-            safe_phrase = cleaned_query.replace('"', '\\"')
-            base_query = f'protein_name:"{safe_phrase}"'
-        else:
-            base_query = f"gene_exact:{cleaned_query}"
-    if not organism:
-        return base_query
-    safe_organism = organism.replace('"', '\\"')
-    return f'({base_query}) AND (organism_name:"{safe_organism}")'
