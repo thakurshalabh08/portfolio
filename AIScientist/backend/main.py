@@ -119,9 +119,9 @@ async def search(
     data = await _uniprot_get(
         "/uniprotkb/search",
         {
-            "query": query,
+            "query": "gene:"+query,
             "format": "json",
-            "fields": "accession,id,protein_name,gene_primary,organism_name,comment(FUNCTION)",
+            "fields": "accession,id,gene_names,organism_name",
             "size": size,
         },
     )
@@ -165,14 +165,14 @@ async def analyze(payload: dict[str, Any], request: Request) -> dict[str, Any]:
 
     query_terms = query
     if organism:
-        query_terms = f"({query}) AND (organism_name:{organism})"
+        query_terms = f"(gene:{query}) AND (organism_name:{organism})"
 
     data = await _uniprot_get(
         "/uniprotkb/search",
         {
             "query": query_terms,
             "format": "json",
-            "fields": "accession,id,protein_name,gene_primary,organism_name,comment(FUNCTION)",
+            "fields": "accession,id,gene_names,organism_name",
             "size": 5,
         },
     )
